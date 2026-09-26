@@ -135,7 +135,7 @@ class Capabilities(Model):
 
 
 class ProviderSpec(Model):
-    adapter: Literal["mock", "jev", "structured-llm", "local-student"]
+    adapter: Literal["mock", "jev", "structured-llm", "local-student", "gliner"]
     id: str = Field(min_length=1)
     model: str = Field(min_length=1)
     version: str = Field(min_length=1)
@@ -156,6 +156,10 @@ class ProviderSpec(Model):
             raise ValueError("structured-llm adapter supports single-request execution only")
         if self.adapter in {"mock", "local-student"} and not self.capabilities.local:
             raise ValueError("mock/student capabilities must declare local=true")
+        if self.adapter == "gliner":
+            from .gliner import validate_spec
+
+            validate_spec(self)
         return self
 
     def identity(self) -> str:

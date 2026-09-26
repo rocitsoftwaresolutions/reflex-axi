@@ -234,3 +234,11 @@ Runtime state lives in `$REFLEX_STATE_ROOT`, else `$XDG_STATE_HOME/reflex-axi`, 
 and exports `0600`, and a symlinked state root is refused. Provider credentials are read
 only from the environment variable named by `api_key_env`; no secret is ever stored,
 logged, or included in an inference identity.
+
+## Provider benchmarks
+
+`benchmark list` discovers suites; `benchmark run --provider <file-or-id> --suite starter`
+creates a protected run. `benchmark runs` lists saved runs; `benchmark resume --run <id>`
+continues checkpoints; `benchmark show --run <id> --full --json` inspects complete artifacts.
+`benchmark compare --run <a> --against <b>` compares only when explicitly invoked.
+See [benchmark methodology and flags](benchmarks.md).

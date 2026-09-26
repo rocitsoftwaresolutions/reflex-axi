@@ -59,3 +59,29 @@ uv venv
 uv pip install -e '.[dev]'
 .venv/bin/python scripts/check.py
 ```
+
+
+## Provider fitness and optional GLiNER
+
+The generated [agent skill](skills/reflex-axi/SKILL.md) now includes configuration, examples,
+command selection and the evidence/lifecycle boundaries. Generate it from `catalog.py`;
+CI checks drift. Upgrade an existing core tool install with `uv tool install --reinstall .`
+from a reviewed checkout. This replaces the executable without rewriting provider or harness
+configuration. Setup continues to export opt-in snippets for manual merging.
+
+```sh
+reflex-axi benchmark list
+reflex-axi benchmark run --provider mock --suite starter
+reflex-axi benchmark runs
+reflex-axi benchmark show --run <id> --full --json --output /private/path/run.json
+```
+
+[Provider benchmarks](docs/benchmarks.md) separate conformance, quality/calibration,
+performance and resilience. Runs are protected, resumable and cannot train or promote a
+provider. Mock runs test the harness, not semantic fitness.
+
+[GLiNER2.5-Decide setup](docs/gliner.md) documents the optional `gliner` extra, offline
+snapshot manifest, runtime pins and tested adapter contract. Real inference is unvalidated:
+the inspected machine had only 2.64 GiB free, insufficient for the 1.95 GB weights plus runtime,
+caches and operating margin. No weights were downloaded. Do not install the optional runtime
+until the documented capacity check passes.

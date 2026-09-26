@@ -252,6 +252,10 @@ class LocalStudentProvider:
 
 
 def provider_from_spec(spec: ProviderSpec) -> Provider:
+    if spec.adapter == "gliner":
+        from .gliner import GLiNERProvider
+
+        return GLiNERProvider(spec)
     factories: dict[str, Callable[[ProviderSpec], Provider]] = {
         "mock": MockProvider,
         "jev": JevProvider,

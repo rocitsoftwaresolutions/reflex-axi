@@ -66,7 +66,22 @@ with tempfile.TemporaryDirectory(dir=".scratch", prefix="installed-") as directo
     )
     assert batch["completed"] == 15
     assert invoke("batch", "--resume", "installed")["completed"] == 15
+    assert invoke("benchmark", "list")["count"] == 4
+    benchmark = invoke(
+        "benchmark",
+        "run",
+        "--provider",
+        "mock",
+        "--suite",
+        "starter",
+        "--mode",
+        "batch",
+        "--repeats",
+        "1",
+    )
+    assert benchmark["conformance"] == 1
+    assert invoke("benchmark", "resume", "--run", benchmark["id"])["status"] == "COMPLETE"
     assert (root / "state").stat().st_mode & 0o777 == 0o700
 print(
-    "Installed wheel smoke: passed (clean state, version, policy:none, bundle, batch, resume, cache)"
+    "Installed wheel smoke: passed (clean state, version, policy:none, bundle, batch, resume, cache, provider benchmark)"
 )
