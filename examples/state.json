@@ -1,0 +1,4 @@
+{
+  "task": "Summarize the release changes",
+  "context": "Release notes include a database migration and a new search filter."
+}
