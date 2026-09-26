@@ -61,6 +61,10 @@ uv pip install -e '.[dev]'
 ```
 
 
+The optional [OpenRouter/Jev adapter](docs/openrouter-jev.md) uses native Decisions API
+probabilities. Its example configuration is disabled pending independent verification of the
+dated model snapshot. Implementation and benchmarks are offline fixture verified only.
+
 ## Provider fitness and optional GLiNER
 
 The generated [agent skill](skills/reflex-axi/SKILL.md) now includes configuration, examples,

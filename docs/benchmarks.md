@@ -121,3 +121,13 @@ statistical calibration or deployment claims.
 For GLiNER availability and the exact capacity blocker, see [gliner.md](gliner.md).
 The existing `scripts/benchmark.py` remains the framework overhead gate; it is not this
 provider-fitness benchmark.
+
+## OpenRouter/Jev
+
+After independent snapshot verification, use
+`reflex-axi benchmark run --provider provider.json --suite starter --mode batch --repeats 1`.
+This is paid remote execution. The shipped `examples/openrouter-jev.json` refuses runtime
+until revision verification; no live API benchmark was performed. See
+[OpenRouter/Jev](openrouter-jev.md) for probability, revision and precision limitations.
+Offline validation uses `--provider mock` and an injected OpenRouter byte-stream fixture
+through all benchmark execution modes. Neither establishes model accuracy or live latency.

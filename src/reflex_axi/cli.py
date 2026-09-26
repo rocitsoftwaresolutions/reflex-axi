@@ -617,9 +617,15 @@ def dispatch(args: argparse.Namespace, store: Store) -> Any:
                 }
                 for r in rows
             ]
+        metadata = {}
+        if command == "providers" and args.full:
+            from .openrouter import LIMITATIONS
+
+            metadata["openrouter_jev"] = LIMITATIONS
         return {
             "count": len(rows),
             command: rows,
+            **metadata,
             "help": [f"reflex-axi {command} --import <file>"],
         }
     if command == "activate":

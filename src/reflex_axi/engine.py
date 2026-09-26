@@ -171,6 +171,7 @@ class Engine:
                     **payload,
                     "id": uuid.uuid4().hex,
                     "execution": {
+                        **payload["execution"],
                         "cache_hit": hit,
                         "source_latency_ms": payload["latency_ms"],
                         "source_cost": payload["cost"],
@@ -382,7 +383,9 @@ def make_result(
         latency_ms=elapsed,
         cost=prediction.cost,
         usage=prediction.usage,
-        execution={},
+        execution={"provider_diagnostics": prediction.diagnostics}
+        if prediction.diagnostics
+        else {},
     )
 
 

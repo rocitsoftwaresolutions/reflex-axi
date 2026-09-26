@@ -1,7 +1,9 @@
+import io
 import json
-import threading
+import urllib.error
+import urllib.request
 from contextlib import contextmanager
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest.mock import patch
 
 import pytest
 
@@ -14,28 +16,17 @@ from reflex_axi.models import Binding, Capabilities, ProviderSpec
 def server(callback):
     requests = []
 
-    class Handler(BaseHTTPRequestHandler):
-        def do_POST(self):
-            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-            requests.append((body, dict(self.headers)))
-            status, response = callback(body)
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(response).encode())
+    def send(request, *, timeout):
+        body = json.loads(request.data)
+        headers = {key.title(): value for key, value in request.header_items()}
+        requests.append((body, headers))
+        status, response = callback(body)
+        if status != 200:
+            raise urllib.error.HTTPError(request.full_url, status, "fixture", {}, None)
+        return io.BytesIO(json.dumps(response).encode())
 
-        def log_message(self, *args):
-            pass
-
-    http = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = threading.Thread(target=http.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield f"http://127.0.0.1:{http.server_port}/v1", requests
-    finally:
-        http.shutdown()
-        thread.join()
-        http.server_close()
+    with patch("urllib.request.OpenerDirector.open", side_effect=send):
+        yield "http://127.0.0.1:1/v1", requests
 
 
 def test_jev_native_batch_wire_id_association_and_cache(store, pack):
@@ -76,7 +67,7 @@ def test_jev_native_batch_wire_id_association_and_cache(store, pack):
         assert len(requests) == 1
 
 
-def test_structured_llm_realistic_http(store, pack, monkeypatch):
+def test_structured_llm_mocked_http(store, pack, monkeypatch):
     def respond(body):
         assert body["response_format"]["json_schema"]["strict"] is True
         assert body["messages"][1]["role"] == "user"

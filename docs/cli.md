@@ -242,3 +242,7 @@ creates a protected run. `benchmark runs` lists saved runs; `benchmark resume --
 continues checkpoints; `benchmark show --run <id> --full --json` inspects complete artifacts.
 `benchmark compare --run <a> --against <b>` compares only when explicitly invoked.
 See [benchmark methodology and flags](benchmarks.md).
+
+OpenRouter/Jev: register `examples/openrouter-jev.json` with `providers --import`. The example
+is intentionally disabled pending independent snapshot verification. See
+[setup and live limitations](openrouter-jev.md); `providers --full` includes capability caveats.

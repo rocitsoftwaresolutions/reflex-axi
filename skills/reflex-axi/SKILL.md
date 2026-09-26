@@ -35,9 +35,13 @@ For reproducible work, pin that Git source to a reviewed commit with `@<commit>`
   an immutable `id@version`. Pass `--provider id@version` or a provider/binding JSON file.
 - Unconfigured packs use the explicit **mock fixture**, which makes no semantic claims.
   Configure a real backend before interpreting accuracy or confidence.
-- Remote adapters: `jev` bridge and `structured-llm`. Local adapters: `mock`, `local-student`,
+- Remote adapters: `jev` bridge, `structured-llm`, and `openrouter-jev` Decisions API. Local adapters: `mock`, `local-student`,
   optional `gliner`. Consult provider contracts before authoring configuration. Keep credentials
   in the named environment variable, never in files or endpoints. No implicit provider fallback.
+- OpenRouter/Jev setup: start from `examples/openrouter-jev.json` and read
+  `docs/openrouter-jev.md`. Dated model and matching revision are required; the example
+  refuses runtime until the operator verifies revision immutability/routability. No live
+  validation is claimed. Native probabilities are required; incomplete distributions fail.
 - `--local-only` rejects remote providers. Capabilities bound batch size, concurrency, state
   size and primitive support. GLiNER needs an optional runtime and verified local snapshot;
   inspect disk space before installing it. Inference performs no weight downloads.

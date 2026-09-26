@@ -9,8 +9,8 @@ uv run python scripts/check.py
 ```
 
 The check runs Ruff lint and formatting, mypy, generated-skill freshness, all unit and
-subprocess/HTTP/crash integration tests, wheel and sdist builds, an isolated installed-wheel
-smoke test, and the relative version/cache benchmark. It never calls a paid provider.
+subprocess/mocked-HTTP/crash integration tests, wheel and sdist builds, an isolated installed-wheel
+smoke test, and the relative version/cache benchmark. Tests forbid network sockets and never call a live provider.
 Tests and tools use ignored `.scratch/` state and fixtures. CI covers macOS/Linux and
 Python 3.11/3.13. Runtime support is POSIX; Windows is not currently supported.
 
