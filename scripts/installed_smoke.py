@@ -26,7 +26,11 @@ with tempfile.TemporaryDirectory(dir=".scratch", prefix="installed-") as directo
         check=True,
     )
     binary = venv / "bin/reflex-axi"
-    env = {**os.environ, "REFLEX_STATE_ROOT": str(root / "state")}
+    env = {
+        **os.environ,
+        "REFLEX_STATE_ROOT": str(root / "state"),
+        "PYTHONPATH": str(Path("tests/network_guard").resolve()),
+    }
     for flag in ["-v", "-V", "--version"]:
         assert subprocess.check_output([str(binary), flag], env=env, text=True).strip() == "0.1.0"
     assert not (root / "state").exists()
@@ -66,6 +70,28 @@ with tempfile.TemporaryDirectory(dir=".scratch", prefix="installed-") as directo
     )
     assert batch["completed"] == 15
     assert invoke("batch", "--resume", "installed")["completed"] == 15
+    registered = invoke("providers", "--import", "examples/openrouter-jev.json", "--full")
+    assert registered["providers"][0]["adapter"] == "openrouter-jev"
+    assert "unverified" in registered["openrouter_jev"]["revision"]
+    refused = subprocess.run(
+        [
+            str(binary),
+            "evaluate",
+            "--provider",
+            "examples/openrouter-jev.json",
+            "--pack",
+            "filter-context",
+            "--state",
+            "examples/state.json",
+            "--research",
+            "--json",
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    assert refused.returncode == 1 and json.loads(refused.stdout)["code"] == "provider_version"
+    assert not refused.stderr
     assert invoke("benchmark", "list")["count"] == 4
     benchmark = invoke(
         "benchmark",

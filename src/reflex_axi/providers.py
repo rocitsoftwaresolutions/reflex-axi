@@ -85,7 +85,9 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def post(spec: ProviderSpec, body: dict[str, Any]) -> Any:
+def post(
+    spec: ProviderSpec, body: dict[str, Any], *, transport: Callable[..., Any] | None = None
+) -> Any:
     endpoint = spec.endpoint or ""
     parsed = urllib.parse.urlparse(endpoint)
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
@@ -113,9 +115,8 @@ def post(spec: ProviderSpec, body: dict[str, Any]) -> Any:
         endpoint, data=canonical(body).encode(), headers=headers, method="POST"
     )
     try:
-        with urllib.request.build_opener(NoRedirect()).open(
-            request, timeout=spec.timeout
-        ) as response:
+        send = transport or urllib.request.build_opener(NoRedirect()).open
+        with send(request, timeout=spec.timeout) as response:
             raw = response.read(8_000_001)
             if len(raw) > 8_000_000:
                 raise ReflexError("provider_response", "provider response exceeds 8 MB")
@@ -252,6 +253,10 @@ class LocalStudentProvider:
 
 
 def provider_from_spec(spec: ProviderSpec) -> Provider:
+    if spec.adapter == "openrouter-jev":
+        from .openrouter import OpenRouterJevProvider
+
+        return OpenRouterJevProvider(spec)
     if spec.adapter == "gliner":
         from .gliner import GLiNERProvider
 

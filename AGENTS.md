@@ -37,7 +37,9 @@ changing anything here.
 ## Conventions
 
 - Reproduce a bug through the console entry point or the provider boundary before fixing it;
-  `tests/test_providers.py` drives real loopback HTTP rather than mocking transports.
+  provider tests exercise serialized HTTP through injected byte-stream transports; the suite
+  forbids network sockets. OpenRouter/Jev snapshot gates and limitations are in
+  `docs/openrouter-jev.md`.
 - Keep default CLI output small and add detail behind `--full` / `--json` / `--fields` /
   `--output`.
 - Add adapters rather than core domain logic. Finance, research and other domain concerns

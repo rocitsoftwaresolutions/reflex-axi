@@ -1,0 +1,31 @@
+{
+  "adapter": "openrouter-jev",
+  "id": "openrouter-jev",
+  "model": "typesafe/jev-1.13-20260917",
+  "version": "20260917",
+  "adapter_version": "1",
+  "endpoint": "https://openrouter.ai/api/alpha/decisions",
+  "api_key_env": "OPENROUTER_API_KEY",
+  "timeout": 30.0,
+  "capabilities": {
+    "primitives": [
+      "binary",
+      "choice",
+      "score"
+    ],
+    "native_batch": false,
+    "multi_question": false,
+    "local": false,
+    "max_batch": 1,
+    "concurrency": 4,
+    "requests_per_second": 4.0,
+    "max_state_bytes": 100000,
+    "latency_class": "medium",
+    "cost_class": "low",
+    "seeded": false,
+    "deterministic": false
+  },
+  "settings": {
+    "revision_verified": false
+  }
+}

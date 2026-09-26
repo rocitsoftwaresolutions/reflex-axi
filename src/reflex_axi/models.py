@@ -135,7 +135,7 @@ class Capabilities(Model):
 
 
 class ProviderSpec(Model):
-    adapter: Literal["mock", "jev", "structured-llm", "local-student", "gliner"]
+    adapter: Literal["mock", "jev", "structured-llm", "local-student", "gliner", "openrouter-jev"]
     id: str = Field(min_length=1)
     model: str = Field(min_length=1)
     version: str = Field(min_length=1)
@@ -156,6 +156,10 @@ class ProviderSpec(Model):
             raise ValueError("structured-llm adapter supports single-request execution only")
         if self.adapter in {"mock", "local-student"} and not self.capabilities.local:
             raise ValueError("mock/student capabilities must declare local=true")
+        if self.adapter == "openrouter-jev":
+            from .openrouter import validate_spec as validate_openrouter_spec
+
+            validate_openrouter_spec(self)
         if self.adapter == "gliner":
             from .gliner import validate_spec
 
@@ -212,6 +216,7 @@ class Prediction(Model):
     distribution: dict[str, float]
     usage: dict[str, float] = Field(default_factory=dict)
     cost: float | None = Field(default=None, ge=0)
+    diagnostics: dict[str, str | float] = Field(default_factory=dict)
 
 
 class DecisionResult(Model):

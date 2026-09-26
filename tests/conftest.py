@@ -1,4 +1,5 @@
 import json
+import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -84,3 +85,15 @@ def write_json(tmp_path, name, value):
     path = Path(tmp_path) / name
     path.write_text(json.dumps(value))
     return str(path)
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    monkeypatch.setenv("PYTHONPATH", str(Path(__file__).parent / "network_guard"))
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Tests must not open network sockets; inject a transport fixture")
+
+    monkeypatch.setattr(socket, "socket", forbidden)
+    monkeypatch.setattr(socket, "create_connection", forbidden)
+    monkeypatch.setattr(socket, "getaddrinfo", forbidden)

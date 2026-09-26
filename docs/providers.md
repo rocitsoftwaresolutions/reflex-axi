@@ -11,7 +11,7 @@ class Provider(Protocol):
     def infer(self, requests: list[Request]) -> dict[str, Prediction]: ...
 ```
 
-`Request` is `(id, pack, state)`; `Prediction` is `(distribution, usage, cost)`. Every
+`Request` is `(id, pack, state)`; `Prediction` is `(distribution, usage, cost, diagnostics)`; diagnostics are optional sanitized metadata. Every
 response is validated before use: the returned IDs must be exactly the requested IDs (no
 omissions, duplicates or invented IDs -> `provider_association`), and each distribution must
 cover exactly the pack's labels with finite probabilities in `[0,1]` summing to one within
@@ -150,6 +150,14 @@ generation or exact arithmetic. Only `temperature`, `seed`, `max_tokens` and `to
 accepted in `settings`. If the response's `model` differs from the pinned model, the call
 fails with `provider_version` rather than silently using a different model.
 
+### `openrouter-jev` (optional remote adapter, offline verified)
+
+Native Noul, Choice and Score through OpenRouter's Decisions API, with strict dated snapshot
+configuration and response validation. Complete probabilities are mandatory; no generated
+probabilities, floating aliases or model fallback. The shipped example refuses inference until
+an operator verifies snapshot immutability/routability. See [OpenRouter/Jev setup, evidence,
+precision limits and privacy](openrouter-jev.md). `providers --full` exposes adapter limitations.
+
 ### `local-student`
 
 The deployment target for [distillation](lifecycle.md#distillation): a deterministic,
@@ -206,5 +214,5 @@ None of these run implicitly, and none of them cost anything during ordinary inf
 5. Keep backend-specific concepts inside `settings`.
 6. Register the class in `provider_from_spec` and add the adapter name to
    `ProviderSpec.adapter`.
-7. Add a fixture-server test in the style of `tests/test_providers.py`, which drives real
-   loopback HTTP rather than mocking the transport.
+7. Add byte-stream transport fixtures in `tests/test_providers.py` or `tests/test_openrouter.py`.
+   All tests forbid socket creation; exercise real request serialization and response parsing.
