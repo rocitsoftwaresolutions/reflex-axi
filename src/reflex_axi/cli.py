@@ -132,6 +132,38 @@ def parser() -> Parser:
         "--chunk-size", type=int, default=128, help="checkpoint chunk size (default 128; 1-10000)"
     )
     p = command(
+        "benchmark",
+        "Discover, run, resume or explicitly compare protected provider benchmarks",
+        [
+            "benchmark list",
+            "benchmark run --provider mock --suite starter",
+            "benchmark show --run <id> --full --json --output run.json",
+        ],
+    )
+    p.add_argument("operation", choices=["list", "runs", "run", "resume", "show", "compare"])
+    p.add_argument(
+        "--provider", help="explicit provider/binding file, id@version or mock; required for run"
+    )
+    p.add_argument(
+        "--suite",
+        action="append",
+        help="repeatable suite (default all); discover with benchmark list",
+    )
+    p.add_argument(
+        "--mode",
+        action="append",
+        choices=["single", "batch", "bundle"],
+        help="execution shape (default all)",
+    )
+    p.add_argument("--repeats", type=int, help="uncached repeats (default 2; 1-20)")
+    p.add_argument(
+        "--concurrency",
+        type=int,
+        help="bounded provider calls (default 1; 1-32, capped by provider)",
+    )
+    p.add_argument("--run", help="saved run ID for show, resume or compare")
+    p.add_argument("--against", help="second saved run ID; compare only")
+    p = command(
         "feedback",
         "Silently record idempotent outcome evidence",
         ["feedback --file outcome.json", "feedback --file outcome.json --json"],
@@ -477,6 +509,78 @@ def dispatch(args: argparse.Namespace, store: Store) -> Any:
                 ]
             result["results"] = rows
         return result
+    if command == "benchmark":
+        from .benchmark import BenchmarkRunner, suites
+
+        operation = args.operation
+        config = any(
+            x is not None
+            for x in [args.provider, args.suite, args.mode, args.repeats, args.concurrency]
+        )
+        if operation != "run" and config:
+            raise ReflexError(
+                "usage",
+                "benchmark inference options are only valid with run; resume uses saved inputs",
+            )
+        if operation == "run" and (not args.provider or args.run or args.against):
+            raise ReflexError(
+                "usage", "benchmark run requires --provider and cannot take saved run IDs"
+            )
+        if operation in {"show", "resume", "compare"} and not args.run:
+            raise ReflexError("usage", "this benchmark operation requires --run <id>")
+        if (operation == "compare") != bool(args.against) or (
+            operation in {"list", "runs"} and args.run
+        ):
+            raise ReflexError(
+                "usage", "--against is required only for compare; list takes no run ID"
+            )
+        bench_runner = BenchmarkRunner(store)
+        if operation == "list":
+            return suites()
+        if operation == "runs":
+            rows = [
+                r
+                for r in store.list("benchmark_runs")
+                if r["definition"]["project"] == store.project_key()
+            ]
+            return {
+                "count": len(rows),
+                "runs": [
+                    {
+                        "id": r["id"],
+                        "provider": r["definition"]["binding"]["provider"]["id"],
+                        "status": bench_runner.show(r["id"])["status"],
+                    }
+                    for r in rows
+                ],
+                "help": ["reflex-axi benchmark resume --run <id>"],
+            }
+        if operation == "compare":
+            return bench_runner.compare(args.run, args.against)
+        if operation == "run":
+            result = bench_runner.run(
+                load_binding(args.provider, store),
+                selected=args.suite,
+                modes=args.mode,
+                repeats=args.repeats if args.repeats is not None else 2,
+                concurrency=args.concurrency if args.concurrency is not None else 1,
+            )
+        elif operation == "resume":
+            result = bench_runner.resume(args.run)
+        else:
+            result = bench_runner.show(args.run)
+        if args.full:
+            return bench_runner.show(result["id"], full=True)
+        summary = result.get("summary", {})
+        return {
+            "id": result["id"],
+            "status": result["status"],
+            "conformance": summary.get("conformance", {}).get("pass_rate"),
+            "accuracy": summary.get("quality", {}).get("accuracy"),
+            "calls": summary.get("performance", {}).get("provider_calls"),
+            "failures": summary.get("resilience", {}).get("unexpected_failures"),
+            "help": [f"reflex-axi benchmark show --run {result['id']} --full --json"],
+        }
     if command == "feedback":
         return Evidence(store).feedback(Outcome.model_validate(load_file(args.file)))
     if command == "scopes":
@@ -657,6 +761,7 @@ def run(argv: list[str]) -> int:
             args.output = None
         else:
             result = dispatch(args, Store(args.state_root))
+        exit_code = 1 if isinstance(result, dict) and result.get("status") == "PARTIAL" else 0
         if args.fields:
             names = args.fields.split(",")
             if not isinstance(result, dict) or not set(names) <= set(result):
@@ -670,7 +775,7 @@ def run(argv: list[str]) -> int:
             result = {"file": args.output, "status": "written"}
             rendered = json.dumps(result) if args.json else encode(result)
         print(rendered)
-        return 1 if isinstance(result, dict) and result.get("status") == "PARTIAL" else 0
+        return exit_code
     except SystemExit as error:
         return int(error.code or 0)
     except (ReflexError, ValidationError, SchemaError, OSError, ValueError, sqlite3.Error) as error:

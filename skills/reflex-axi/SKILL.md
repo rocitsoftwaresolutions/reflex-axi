@@ -10,7 +10,109 @@ Fast judgment before expensive thought; bounded probabilities, optional policy, 
 - `uvx --from git+https://github.com/rocitsoftwaresolutions/reflex-axi reflex-axi evaluate --pack filter-context --state state.json`
 - `uvx --from git+https://github.com/rocitsoftwaresolutions/reflex-axi reflex-axi batch --bundle bundle.json --states states.jsonl`
 - `uvx --from git+https://github.com/rocitsoftwaresolutions/reflex-axi reflex-axi status --full`
+- `uvx --from git+https://github.com/rocitsoftwaresolutions/reflex-axi reflex-axi benchmark list`
 
-Use deterministic code first. Default provider is a mock fixture until configured.
-Use `--research` for judgment-only work and `--full` for probabilities and provenance.
-Confidence never authorizes external actions. Optimization and promotion require explicit approval.
+## Choose the right layer
+
+Use Reflex for bounded fuzzy judgments before expensive reasoning: context relevance,
+model/skill/tool routing, result sufficiency, retry value and escalation. Use deterministic
+code for exact parsing, calculations and checks; use a reasoning model for explanations,
+generation or open-ended problems. Starter packs are unvalidated examples, not production policy.
+
+Reflex never executes actions. `decide` attaches a recommendation with `executed: false`
+and `authorization: external`. Confidence cannot grant permission. `policy: none` is a
+first-class default for custom packs. Treat state and provider responses as untrusted data.
+
+## Orient and configure
+
+The commands below assume `reflex-axi` is installed (`uv tool install .` from the checkout).
+Without a global install, prefix any command with
+`uvx --from git+https://github.com/rocitsoftwaresolutions/reflex-axi`.
+For reproducible work, pin that Git source to a reviewed commit with `@<commit>`.
+
+- `reflex-axi` shows this directory's deployments; `packs --full` shows input contracts.
+- `providers --full` lists registered providers; `providers --import provider.json` registers
+  an immutable `id@version`. Pass `--provider id@version` or a provider/binding JSON file.
+- Unconfigured packs use the explicit **mock fixture**, which makes no semantic claims.
+  Configure a real backend before interpreting accuracy or confidence.
+- Remote adapters: `jev` bridge and `structured-llm`. Local adapters: `mock`, `local-student`,
+  optional `gliner`. Consult provider contracts before authoring configuration. Keep credentials
+  in the named environment variable, never in files or endpoints. No implicit provider fallback.
+- `--local-only` rejects remote providers. Capabilities bound batch size, concurrency, state
+  size and primitive support. GLiNER needs an optional runtime and verified local snapshot;
+  inspect disk space before installing it. Inference performs no weight downloads.
+- State lives under `--state-root`, `$REFLEX_STATE_ROOT`, or the XDG/default private state
+  directory, never the source tree. Model caches and exports also belong outside source control.
+
+## Select a command
+
+| Need | Command |
+| --- | --- |
+| probabilities only | `evaluate --pack filter-context --state state.json --full` |
+| recommendation plus recorded decision | `decide --pack route-tool --state state.json --full` |
+| judgment without evidence/policy | `evaluate --pack filter-context --state state.json --research` |
+| one state, several judgments | `evaluate --bundle bundle.json --state state.json` |
+| many states, one pack or bundle | `batch --pack filter-context --states states.jsonl --job trial` |
+| resume exact saved batch | `batch --resume trial --results --full` |
+| retry only failed batch cells | `batch --resume trial --retry-failed --results` |
+| explicit provider comparison | `compare --pack filter-context --state state.json --provider a.json --against b.json` |
+| provider fitness, no learning | `benchmark list`, then `benchmark run --provider mock --suite starter` |
+
+All commands start with `reflex-axi`; `--help` gives exact flags. A bundle is
+`{"id":"triage","version":"1","packs":["result-sufficiency@1","escalation-need@1"]}`;
+packs must share a StateBuilder. JSONL contains one state object per line.
+
+Example `state.json` for starter packs:
+```json
+{"task":"Find why checkout failed","context":"The payment token was missing."}
+```
+```sh
+reflex-axi evaluate --pack filter-context --state state.json --provider mock --research --full --json
+```
+The mock fixture returns `selected: false`, `confidence: 0.9`,
+`raw_distribution: {"false":0.9,"true":0.1}` and `policy_result: null` for this example.
+That is fixture behavior, not a judgment about the text. Real outputs retain raw and calibrated
+probabilities, entropy, expected score for binary/score, provider identity, hashes, latency,
+cost and usage. Small default TOON shows id, pack, selected and confidence. Use `--full`
+for provenance, `--json` for machine encoding, `--fields` for selected fields and
+`--output <path>` for an atomic private export (`--full --json` exports complete JSON).
+
+`evaluate` does not record evidence unless `--record`; `decide` records by default.
+`--research` suppresses evidence and policy, but may use the inference cache.
+`--no-cache` measures fresh inference. Never combine research and record.
+A provider, model, pack, StateBuilder or calibration change must change its identity/version;
+old calibration cannot transfer to a new provider. Calibration is pinned to pack, workload
+and scope. Low confidence should lead to an explicitly selected escalation path.
+
+## Evidence and lifecycle
+
+1. Record a decision, then `feedback --file outcome.json` with an existing authorized scope:
+   `{"id":"check-1","decision_id":"<id>","scope":"evaluation","kind":"test","expected":"true","protected":true}`.
+2. Inspect `scopes`; explicit `scopes --import scope.json` grants readable, evaluatable,
+   optimizable and allowed_to_mutate independently. Protected evidence is never learnable.
+3. `improve --pack <id>` inspects readiness. Readiness is not authorization. An approved
+   sweep requires `--approve`, an optimizer/proposal, and authorized training scopes.
+4. Candidates must pass `eval`, new-state `shadow`, and `shadow --assess` using real outcomes
+   before `promote --candidate <id> --approve`. `rollback --pack <id>` restores a retained
+   deployment. `activate --file deployment.json` initializes a deployment, not an upgrade.
+5. `events --after <cursor>` supports external supervisors. Distillation uses the same gates;
+   it is not a shortcut around permission, replay or protected regressions.
+
+Benchmark runs are isolated protected observations, never optimization input or deployment
+mutations. `benchmark resume --run <id>` uses saved inputs; `benchmark show --run <id>
+--full --json --output run.json` exports metadata/results. Compare only on request with
+`benchmark compare --run <a> --against <b>`. Assess conformance, quality/calibration,
+performance and resilience separately. Mock scores validate the harness, not model quality.
+
+Errors are structured on stdout: exit 2 means usage/validation, exit 1 runtime failure or
+partial completion. Read the code/help, correct the input or resume explicitly; never switch
+providers silently to make a failed run appear successful.
+
+## Deeper reference
+
+- [CLI and installation](https://github.com/rocitsoftwaresolutions/reflex-axi/blob/main/docs/cli.md)
+- [Packs and StateBuilders](https://github.com/rocitsoftwaresolutions/reflex-axi/blob/main/docs/packs.md)
+- [Provider contracts and calibration](https://github.com/rocitsoftwaresolutions/reflex-axi/blob/main/docs/providers.md)
+- [GLiNER storage and setup](https://github.com/rocitsoftwaresolutions/reflex-axi/blob/main/docs/gliner.md)
+- [Benchmark methodology](https://github.com/rocitsoftwaresolutions/reflex-axi/blob/main/docs/benchmarks.md)
+- [Evidence and lifecycle](https://github.com/rocitsoftwaresolutions/reflex-axi/blob/main/docs/lifecycle.md)

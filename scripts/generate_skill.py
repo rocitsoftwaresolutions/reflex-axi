@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 
-from reflex_axi.catalog import DESCRIPTION, GUIDANCE
+from reflex_axi.catalog import DESCRIPTION, GUIDANCE, SKILL_GUIDE
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--check", action="store_true")
@@ -24,9 +24,7 @@ description: Use for bounded fuzzy judgment, routing, filtering, scoring, batch 
 
 {commands}
 
-Use deterministic code first. Default provider is a mock fixture until configured.
-Use `--research` for judgment-only work and `--full` for probabilities and provenance.
-Confidence never authorizes external actions. Optimization and promotion require explicit approval.
+{SKILL_GUIDE.strip()}
 """
 if args.check:
     if not target.exists() or target.read_text() != content:

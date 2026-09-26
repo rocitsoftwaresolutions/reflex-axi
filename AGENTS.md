@@ -43,6 +43,8 @@ changing anything here.
 - Add adapters rather than core domain logic. Finance, research and other domain concerns
   belong in consuming systems, not here.
 - `docs/` is the durable reference: architecture, packs, providers, lifecycle, cli, migration.
+  Provider benchmark isolation and reproducibility are in `docs/benchmarks.md`; optional
+  GLiNER storage gates and offline runtime pins are in `docs/gliner.md`.
 
 ## Maintaining this file
 

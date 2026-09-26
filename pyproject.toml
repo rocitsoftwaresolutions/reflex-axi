@@ -15,10 +15,11 @@ dependencies = ["pydantic>=2.10,<3", "jsonschema>=4.23,<5"]
 reflex-axi = "reflex_axi.entry:main"
 
 [project.optional-dependencies]
+gliner = ["gliner2[local]==2.0.0"]
 dev = ["pytest>=8", "ruff>=0.11", "mypy>=1.15", "types-jsonschema>=4", "build>=1.2"]
 
 [tool.setuptools.package-data]
-reflex_axi = ["packs/*.json", "py.typed"]
+reflex_axi = ["packs/*.json", "benchmarks/*.json", "py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

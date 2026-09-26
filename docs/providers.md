@@ -157,6 +157,16 @@ local-only lookup provider with a prior fallback. A real trainer implements the 
 `Trainer` protocol and returns whatever `ProviderSpec` its runtime needs; the shipped fixture
 trainer keeps the lifecycle testable without bundling an ML runtime.
 
+### `gliner` (optional, fixture-tested)
+
+Offline GLiNER2.5-Decide through GLiNER2 2.0.0 full per-label logits. CPU float32,
+seeded deterministic settings, same-judgment native batches up to eight, concurrency one,
+no implicit download or fallback. Model-file hashes and runtime versions are mandatory
+settings. See [storage, installation and limitations](gliner.md); real inference has not yet
+been tested because the inspected disk cannot safely fit the runtime.
+
+Use [provider benchmarks](benchmarks.md) to measure fitness before considering deployment.
+
 ## Network safety
 
 All remote calls go through one hardened `post`:
