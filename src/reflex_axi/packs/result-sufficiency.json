@@ -1,0 +1,67 @@
+{
+  "id": "result-sufficiency",
+  "version": "1",
+  "state": {
+    "version": "1",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "context": {
+          "type": "string",
+          "maxLength": 32000
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "task",
+        "context"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "judgment": {
+    "version": "1",
+    "primitive": "score",
+    "labels": [
+      "insufficient",
+      "partial",
+      "sufficient"
+    ],
+    "question": "Judge how completely the supplied result in context satisfies the task. This is semantic sufficiency; exact tests and deterministic checks run in code first.",
+    "values": {
+      "insufficient": 0.0,
+      "partial": 0.5,
+      "sufficient": 1.0
+    }
+  },
+  "policy": {
+    "version": "1",
+    "kind": "recommend",
+    "min_confidence": 0.8,
+    "actions": {
+      "insufficient": "consider-retry",
+      "partial": "review-gap",
+      "sufficient": "accept-proposal"
+    },
+    "uncertain": "escalate"
+  },
+  "metadata": {
+    "purpose": "scoring",
+    "status": "starter-unvalidated",
+    "note": "Validate and calibrate on your workload before production; mock output is only a fixture."
+  }
+}

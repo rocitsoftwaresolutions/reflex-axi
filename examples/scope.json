@@ -1,0 +1,7 @@
+{
+  "name": "training",
+  "readable": true,
+  "evaluatable": true,
+  "optimizable": true,
+  "allowed_to_mutate": true
+}

@@ -1,0 +1,64 @@
+{
+  "id": "route-tool",
+  "version": "1",
+  "state": {
+    "version": "1",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "context": {
+          "type": "string",
+          "maxLength": 32000
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "task",
+        "context"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "judgment": {
+    "version": "1",
+    "primitive": "choice",
+    "labels": [
+      "none",
+      "read",
+      "write",
+      "reason"
+    ],
+    "question": "Which tool class fits the task: none, read-only retrieval, a write proposal requiring external authorization, or reasoning? Context describes available tools. Never infer permission to execute."
+  },
+  "policy": {
+    "version": "1",
+    "kind": "recommend",
+    "min_confidence": 0.8,
+    "actions": {
+      "none": "continue",
+      "read": "consider-read-tool",
+      "write": "request-external-authorization",
+      "reason": "system2"
+    },
+    "uncertain": "escalate"
+  },
+  "metadata": {
+    "purpose": "routing",
+    "status": "starter-unvalidated",
+    "note": "Validate and calibrate on your workload before production; mock output is only a fixture."
+  }
+}
