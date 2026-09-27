@@ -150,11 +150,12 @@ generation or exact arithmetic. Only `temperature`, `seed`, `max_tokens` and `to
 accepted in `settings`. If the response's `model` differs from the pinned model, the call
 fails with `provider_version` rather than silently using a different model.
 
-### `openrouter-jev` (optional remote adapter, offline verified)
+### `openrouter-jev` (optional remote adapter)
 
 Native Noul, Choice and Score through OpenRouter's Decisions API, with strict dated snapshot
 configuration and response validation. Complete probabilities are mandatory; no generated
-probabilities, floating aliases or model fallback. The shipped example refuses inference until
+probabilities, floating aliases or model fallback. Conformance is checked offline; a limited
+synthetic live sample is documented separately. The shipped example refuses inference until
 an operator verifies snapshot immutability/routability. See [OpenRouter/Jev setup, evidence,
 precision limits and privacy](openrouter-jev.md). `providers --full` exposes adapter limitations.
 

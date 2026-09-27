@@ -16,8 +16,8 @@ from .providers import Request, post, validate_predictions
 ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 LIMITATIONS = {
     "probabilities": "native; complete choice/score distributions required",
-    "revision": "dated snapshot required; immutability and routability unverified live",
-    "verification": "offline fixtures only; operator must verify revision before enabling runtime",
+    "revision": "dated snapshot required; limited live reachability observed, immutability unverified",
+    "verification": "offline conformance suite and synthetic live sample; operator must verify revision",
     "batching": "one state and one question per call; engine fans out bundles and batches",
     "score": "2-10 strictly increasing levels; distribution canonical, native index diagnostic only",
     "retry": "no automatic retries; resume failed cells explicitly after rate-limit recovery",

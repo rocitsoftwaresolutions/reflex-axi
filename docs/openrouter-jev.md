@@ -23,14 +23,16 @@ tutorial rechecked on 2026-09-27 for continuous-score semantics:
   concentration and differs from the largest probability. Its exact formula is not a
   stable API contract; do not equate it with Reflex confidence or authorization.
 
-These documents are evidence, not instructions to execute their examples. **No OpenRouter
-or Jev API endpoint was called during implementation or validation.** No real key,
-credential store, environment listing, or Hermes configuration was inspected. Tests use
-synthetic credentials and an injected byte-stream transport; socket creation is forbidden.
+These documents are evidence, not instructions to execute their examples. The automated
+suite uses synthetic credentials and injected byte-stream transports; socket creation is
+forbidden. A separately authorized synthetic live check on 2026-09-27 made six focused
+score calls and one 19-case starter run against `typesafe/jev-1.13-20260917`. Only sanitized
+numeric diagnostics were retained outside the repository; no live payloads are committed.
+See the limited [live evidence](#live-score-check-2026-09-27) below.
 
 The public tutorial documents a release alias resolving to a dated snapshot. It does not
-establish a contractual immutability guarantee or confirm that the dated response ID can be
-used as a request model. There is no verified server revision attestation field beyond
+establish a contractual immutability guarantee. The dated snapshot was reachable during
+the limited live check. There is no verified server revision attestation field beyond
 `model`. Therefore:
 
 - Configuration requires an explicit `typesafe/jev-MAJOR.MINOR-YYYYMMDD` snapshot and a
@@ -45,9 +47,11 @@ used as a request model. There is no verified server revision attestation field 
   snapshot; an optional provider field must be `TypeSafe`. Unsupported pins fail, never
   downgrade to the release alias. An omitted provider field is allowed by the public schema;
   routing enforcement then relies on OpenRouter honoring the request preferences.
-- Dated snapshot reachability, immutability, probability precision, routing preference
-  enforcement, live latency, pricing and semantic quality remain **unverified live**.
-  `providers --full` exposes these limitations even before registering a provider.
+- Live reachability, latency, usage and semantic observations are limited to the synthetic
+  sample below. Snapshot immutability, precision guarantees, routing enforcement beyond
+  returned identity, and production quality remain unverified. `providers --full` exposes
+  these limitations even before registering a provider. The diagnostic
+  `live_verification: unverified` denotes the absence of independent server attestation.
 
 ## Configure without making a request
 
@@ -77,8 +81,8 @@ reflex-axi batch --provider provider.json --bundle bundle.json --states states.j
 reflex-axi benchmark run --provider provider.json --suite starter --mode batch --repeats 1
 ```
 
-Those commands may incur charges with an enabled provider. They were not run against a
-live provider for this change. An offline framework benchmark uses `--provider mock`.
+Those commands may incur charges with an enabled provider. The live check used single mode;
+it did not qualify native batching or higher concurrency. An offline framework benchmark uses `--provider mock`.
 `tests/test_openrouter.py` additionally runs the actual adapter through the benchmark runner
 with deterministic wire fixtures, including single, batch and bundle modes. Fixture quality
 and timing are not evidence of Jev model quality or service latency.
@@ -210,3 +214,40 @@ For controlled Python diagnostic calls, construct `ScoreDiagnostics(store)` from
 `reflex_axi.openrouter_diagnostics` and pass it as `score_diagnostics=` to
 `OpenRouterJevProvider`. Only score calls are captured. The optional recorder is runtime
 instrumentation, never a provider setting, and must use a private state root.
+
+## Live score check, 2026-09-27
+
+Two passes over the synthetic sufficient/partial/empty-result shapes accepted 6/6 calls
+and selected every authored expected label. Native indexes included fractional values;
+all six matched their returned distribution-derived indexes. The zero controls both
+returned zero. No raw-response comparison or extra sampling was needed.
+
+A new immutable run used the original provider binding and corpus with `starter`, `single`,
+one repeat and concurrency one. Original sealed records remained unchanged; both runs'
+definition/results hashes and independently recomputed summaries verified.
+
+| Measurement | Original live run | New live run |
+| --- | --- | --- |
+| Accepted and correct / attempted | 17/19 | 19/19 |
+| Accepted-label accuracy | 17/17 | 19/19 |
+| Score cases accepted | 1/3 | 3/3 |
+| Brier / ECE / log loss | 0.014494 / 0.058824 / 0.063099 | 0.019484 / 0.071053 / 0.077635 |
+| Semantic score MAE | 0, only one accepted score | 0.033333, all three scores |
+| Coverage at 0.8, accepted denominator | 17/17 | 17/19 |
+| Coverage at 0.95, accepted denominator | 10/17 | 9/19 |
+| Mean / p50 / p95 call latency, ms | 277.48 / 267.49 / 355.99 | 289.77 / 284.98 / 443.60 |
+| Input / output tokens | 6202 / 583, incomplete | 6921 / 621, complete |
+| Reported cost, USD | 0.000260484 subtotal; total unknown | 0.000290682 complete |
+
+There was no calibration configured. These are descriptive calibration metrics, not a
+calibration guarantee. Coverage at 0.95 over **all attempts** was 10/19 before and 9/19 after.
+No selected errors were observed, but nineteen authored examples do not estimate production
+risk. Quality denominators differ because rejected calls are excluded. Pilot reported cost
+was USD 0.000089964; all 25 authorized new calls together reported USD 0.000380646.
+
+The before/after observation does **not** establish causality for the historical failures:
+original rejected responses were not retained, and every newly observed score also satisfies
+the former equality check. The regression fixtures and public tutorial establish why strict
+displayed equality is an invalid acceptance requirement; the live sample establishes current
+fractional-score operation. Probabilities and latency varied between calls. No further paid
+reruns were made, and no production, immutable-revision or service-reliability claim follows.
