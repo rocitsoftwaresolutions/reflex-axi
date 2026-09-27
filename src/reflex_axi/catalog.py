@@ -183,6 +183,8 @@ mutations. `benchmark resume --run <id>` uses saved inputs; `benchmark show --ru
 --full --json --output run.json` exports metadata/results. Compare only on request with
 `benchmark compare --run <a> --against <b>`. Assess conformance, quality/calibration,
 performance and resilience separately. Mock scores validate the harness, not model quality.
+For OpenRouter/Jev score failures, opt in with `benchmark run ... --score-diagnostics`:
+bounded numeric validation records stay in the private state root and appear in `show --full`.
 
 Errors are structured on stdout: exit 2 means usage/validation, exit 1 runtime failure or
 partial completion. Read the code/help, correct the input or resume explicitly; never switch

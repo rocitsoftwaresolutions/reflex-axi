@@ -16,6 +16,12 @@ reflex-axi benchmark show --run <id> --full --json --output /private/path/run.js
 reflex-axi benchmark compare --run <a> --against <b>
 ```
 
+For OpenRouter/Jev score validation investigations, add `--score-diagnostics` to `run` or
+`resume`. This explicitly captures bounded, numeric-only pre-validation evidence in the
+private state root, including failures; `show --full --json` includes these separate records.
+It does not alter inference identity, sealed results, cost accounting or quality metrics.
+See [the diagnostic schema and privacy bounds](openrouter-jev.md#opt-in-score-failure-diagnostics).
+
 `--provider` is required: `mock`, a registered `id@version`, or a provider/binding JSON file.
 No implicit active-deployment selection. Default suite/mode selection is all; default repeats
 is 2 and concurrency 1. Limits are 20 repeats and 32 workers, additionally capped by the

@@ -6,7 +6,8 @@ runtime dependency, credential discovery, metadata call, or fallback is involved
 
 ## Evidence and verification boundary
 
-Public official documents inspected on 2026-09-26:
+Public official documents inspected on 2026-09-26; TypeSafe Score and the OpenRouter
+tutorial rechecked on 2026-09-27 for continuous-score semantics:
 
 - [OpenRouter Decisions API and embedded OpenAPI schema](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-questions-and-answers-request):
   `POST https://openrouter.ai/api/alpha/decisions`, Bearer authentication, `model`, `state`,
@@ -100,9 +101,11 @@ mappings, unknown settings, or malformed versioned pack references fail. These d
 are part of the provider identity, so changing them invalidates cache and calibration reuse.
 
 Score packs must contain 2-10 labels whose numeric `values` strictly increase in the given
-label order. Nonuniform spacing is allowed. Jev's returned `score` is validated against the
-expected **index**; Reflex computes `expected_score` from the full distribution and the
-pack's numeric values. If supplied, `legend` must exactly match the submitted description
+label order. Nonuniform spacing is allowed. Jev's returned `score` is a **continuous expected
+index**, not an integer class or a pack value. It must be a finite number in `[0,N-1]`.
+The returned distribution is canonical provider evidence. Universal core logic computes
+Reflex `expected_score = sum(probability(label) * pack_value(label))` from that distribution
+(after calibration, if configured). If supplied, `legend` must exactly match the submitted description
 order. No sorting or implicit ordinal reinterpretation occurs.
 
 The parser requires finite numeric probabilities in `[0,1]`, exact label cardinality and
@@ -111,12 +114,27 @@ mass, or constructs a distribution from a winning label and confidence. Although
 schema makes Choice/Score probabilities optional, incomplete responses cannot satisfy
 Reflex's provider contract and fail without caching. Selected ties may name any maximum;
 Reflex deterministically selects the first maximum in pack label order. The native selected
-label is retained in diagnostics. `score` must agree with the expected index within `1e-6`.
+label is retained in diagnostics. Score selection uses that same provider-neutral rule,
+never rounding or casting the native score to a class.
 
-**Precision limitation:** the tutorial's captured score example reports `1.99` alongside
-probabilities implying `2.0`. This adapter rejects such inconsistent rounded responses. A
-stable precision contract must be established before loosening validation; the implementation
-does not invent a tolerance that silently changes distribution semantics.
+**Native score comparison is diagnostic, not distribution validation.** TypeSafe describes
+the score as a probability-weighted mean of level numbers. The OpenRouter tutorial's
+captured response reports `1.99` alongside probabilities implying `2.0`; the public evidence
+does not establish exact equality at the returned precision. The adapter therefore preserves
+`native_score`, recomputes `native_expected_index = sum(p_i * i)`, and records the absolute
+`native_score_disagreement` in provider diagnostics. Its warning is `none` for disagreement
+at most `1e-6`, `small_disagreement` up to `0.02` index units, otherwise `large_disagreement`.
+The `0.02` threshold is a local diagnostic severity choice, not a provider precision promise.
+Even large disagreement cannot invalidate otherwise valid evidence. For example,
+`{"0":0.01,"1":0,"2":0.99}` implies native index `1.98`; with pack values `0,0.5,1`,
+the Reflex semantic score is `0.99`, regardless of a valid native score of `1.98` or `1.99`.
+Neither distribution probabilities nor the universal sum tolerance change.
+
+Adapter version remains `1`: request inputs, canonical distributions of previously accepted
+responses, selection, calibration and identity semantics are unchanged. This fixes response
+acceptance and adds diagnostics, not an inference input or model change. Existing cached
+accepted results remain valid (and may lack the new diagnostic fields); rejected responses
+were never cached. Benchmark implementation hashes still distinguish before/after runs.
 
 Native confidence, when present, is validated in `[0,1]` and retained as
 `execution.provider_diagnostics.native_confidence`. Reflex keeps its existing confidence
@@ -159,3 +177,36 @@ Remote inference discloses normalized state and question criteria to OpenRouter 
 No zero-retention guarantee is asserted. Review both services' retention and account policies
 before transmitting sensitive data. Reflex's own state/cache/benchmark storage still follows
 its private state-root rules; evidence authorization and confidence never authorize actions.
+
+## Opt-in score failure diagnostics
+
+Use `benchmark run ... --score-diagnostics` (or explicitly opt in again on an unfinished
+`benchmark resume`) to capture score response validation evidence. Ordinary inference and
+benchmarks without this flag emit no rejected response diagnostics or console warnings.
+This option is restricted to `openrouter-jev`; it does not change provider identity,
+calibration, benchmark quality denominators or the sealed result. `benchmark show --run <id>
+--full --json` includes the separate records as `score_diagnostics` when present.
+
+Before typed validation, the adapter projects the decoded JSON onto a fixed allowlist:
+known answer kind; numeric native score/confidence; exact numeric probabilities under at
+most ten locally generated index keys; probability, legend and label counts; recomputed
+expected index when the complete index map is numeric; matching configured model/provider;
+numeric usage/cost. Unknown model/provider strings become `mismatch`, never copied text.
+Non-numeric/nonfinite fields become null or are omitted; `probabilities_complete` exposes
+whether every returned entry was retained. Malformed maps with unknown or oversized keys
+retain cardinality, not provider-controlled keys. Legend text, state, instructions, IDs,
+headers, arbitrary text and credentials are never persisted. Strict JSON/size/transport
+failures produce only a local category, since there is no safe decoded answer to inspect.
+
+After validation, the record adds a stable Reflex-authored category/message and, for valid
+answers, native disagreement diagnostics. Records live in the state-root SQLite bucket
+`openrouter_score_diagnostics:<run-id>` (0700 directory, 0600 database), outside the source
+tree. A session is capped at 256 records of at most 4096 bytes plus one limit marker;
+transactions enforce the cap across concurrent writers. These are supplemental observations,
+not accepted results, calibration evidence, cost totals, or learnable data. Full exports
+remain an explicit operation. Storage failures surface rather than claiming capture succeeded.
+
+For controlled Python diagnostic calls, construct `ScoreDiagnostics(store)` from
+`reflex_axi.openrouter_diagnostics` and pass it as `score_diagnostics=` to
+`OpenRouterJevProvider`. Only score calls are captured. The optional recorder is runtime
+instrumentation, never a provider setting, and must use a private state root.

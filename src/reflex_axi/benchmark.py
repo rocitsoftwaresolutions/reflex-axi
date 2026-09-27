@@ -337,9 +337,12 @@ def summarize(rows: list[dict[str, Any]], chunks: list[dict[str, Any]]) -> dict[
 
 
 class BenchmarkRunner:
-    def __init__(self, store: Store, provider: Provider | None = None) -> None:
+    def __init__(
+        self, store: Store, provider: Provider | None = None, *, score_diagnostics: bool = False
+    ) -> None:
         self.store = store
         self.provider = provider
+        self.score_diagnostics = score_diagnostics
 
     def key(self, run_id: str) -> str:
         return self.store.project_key() + ":" + run_id
@@ -353,6 +356,8 @@ class BenchmarkRunner:
         repeats: int = 2,
         concurrency: int = 1,
     ) -> dict[str, Any]:
+        if self.score_diagnostics and binding.provider.adapter != "openrouter-jev":
+            raise ReflexError("usage", "score diagnostics require the openrouter-jev adapter")
         selected = selected or list(SUITES)
         modes = modes or list(MODES)
         if (
@@ -421,7 +426,21 @@ class BenchmarkRunner:
             )
         try:
             binding = Binding.model_validate(d["binding"])
-            observed = ObservedProvider(self.provider or provider_from_spec(binding.provider))
+            provider = self.provider or provider_from_spec(binding.provider)
+            if self.score_diagnostics:
+                from .openrouter import OpenRouterJevProvider
+                from .openrouter_diagnostics import ScoreDiagnostics
+
+                if not isinstance(provider, OpenRouterJevProvider):
+                    raise ReflexError(
+                        "usage", "score diagnostics require the openrouter-jev adapter"
+                    )
+                provider = OpenRouterJevProvider(
+                    provider.spec,
+                    transport=provider.transport,
+                    score_diagnostics=ScoreDiagnostics(self.store, session=run_id),
+                )
+            observed = ObservedProvider(provider)
             engine = Engine(self.store, observed)
             session = uuid.uuid4().hex
             tasks = []
@@ -557,7 +576,13 @@ class BenchmarkRunner:
             chunks = sorted(
                 self.store.list("benchmark_chunks:" + self.key(run_id)), key=lambda c: c["index"]
             )
-            return {**final, "metadata": meta, "chunks": chunks}
+            diagnostics = self.store.list("openrouter_score_diagnostics:" + run_id)
+            return {
+                **final,
+                "metadata": meta,
+                "chunks": chunks,
+                **({"score_diagnostics": diagnostics} if diagnostics else {}),
+            }
         return final
 
     def compare(self, a: str, b: str) -> dict[str, Any]:

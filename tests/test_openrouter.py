@@ -81,6 +81,34 @@ def typed_pack(pack, primitive):
     return Pack.model_validate(data)
 
 
+@pytest.mark.parametrize(
+    "native,probabilities,semantic",
+    [(1.99, [0, 0, 1], 80), (0.99, [0, 1, 0], 20), (0.0, [1, 0, 0], 10)],
+)
+def test_score_rounded_nonzero_and_zero_control(
+    monkeypatch, store, pack, native, probabilities, semantic
+):
+    pack = typed_pack(pack, "score")
+    send, calls = fixture(
+        monkeypatch,
+        envelope(
+            {
+                "type": "score",
+                "score": native,
+                "probabilities": {str(i): p for i, p in enumerate(probabilities)},
+            }
+        ),
+    )
+    binding = Binding(provider=spec())
+    result = Engine(store, OpenRouterJevProvider(binding.provider, transport=send)).evaluate(
+        pack,
+        {"text": "synthetic score control"},
+        binding,
+    )
+    assert result.expected_score == semantic
+    assert len(calls) == 1
+
+
 @pytest.mark.parametrize("primitive", ["binary", "choice", "score"])
 def test_success_engine_semantics(monkeypatch, store, pack, primitive):
     pack = typed_pack(pack, primitive)
@@ -236,7 +264,7 @@ def test_invalid_distributions(monkeypatch, store, pack, primitive, fault):
             "bool": True,
         }[fault]
     elif fault == "selected":
-        answer.update({"choice": "low"} if primitive == "choice" else {"score": 1.5})
+        answer.update({"choice": "low"} if primitive == "choice" else {"score": 2.01})
     elif fault == "confidence":
         answer["confidence"] = 1.01
     elif fault == "legend":
