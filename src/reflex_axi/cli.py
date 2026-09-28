@@ -163,6 +163,11 @@ def parser() -> Parser:
     )
     p.add_argument("--run", help="saved run ID for show, resume or compare")
     p.add_argument("--against", help="second saved run ID; compare only")
+    p.add_argument(
+        "--score-diagnostics",
+        action="store_true",
+        help="run/resume only: private bounded OpenRouter/Jev score validation records in state root",
+    )
     p = command(
         "feedback",
         "Silently record idempotent outcome evidence",
@@ -513,6 +518,10 @@ def dispatch(args: argparse.Namespace, store: Store) -> Any:
         from .benchmark import BenchmarkRunner, suites
 
         operation = args.operation
+        if args.score_diagnostics and operation not in {"run", "resume"}:
+            raise ReflexError(
+                "usage", "--score-diagnostics is only valid with benchmark run/resume"
+            )
         config = any(
             x is not None
             for x in [args.provider, args.suite, args.mode, args.repeats, args.concurrency]
@@ -534,7 +543,7 @@ def dispatch(args: argparse.Namespace, store: Store) -> Any:
             raise ReflexError(
                 "usage", "--against is required only for compare; list takes no run ID"
             )
-        bench_runner = BenchmarkRunner(store)
+        bench_runner = BenchmarkRunner(store, score_diagnostics=args.score_diagnostics)
         if operation == "list":
             return suites()
         if operation == "runs":

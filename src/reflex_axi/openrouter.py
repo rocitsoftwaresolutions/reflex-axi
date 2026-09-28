@@ -10,17 +10,39 @@ from pydantic import Field, ValidationError
 
 from .errors import ReflexError
 from .models import Model, Prediction, ProviderSpec
+from .openrouter_diagnostics import ResponseValidationError, ScoreDiagnostics, score_snapshot
 from .providers import Request, post, validate_predictions
 
 ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 LIMITATIONS = {
     "probabilities": "native; complete choice/score distributions required",
-    "revision": "dated snapshot required; immutability and routability unverified live",
-    "verification": "offline fixtures only; operator must verify revision before enabling runtime",
+    "revision": "dated snapshot required; limited live reachability observed, immutability unverified",
+    "verification": "offline conformance suite and synthetic live sample; operator must verify revision",
     "batching": "one state and one question per call; engine fans out bundles and batches",
-    "score": "2-10 strictly increasing levels; exact probability/score consistency required",
+    "score": "2-10 strictly increasing levels; distribution canonical, native index diagnostic only",
     "retry": "no automatic retries; resume failed cells explicitly after rate-limit recovery",
 }
+
+# Index units, independent of the universal 1e-6 distribution-sum tolerance.
+# This is diagnostic severity only, never an acceptance or normalization tolerance.
+SMALL_SCORE_DISAGREEMENT = 0.02
+
+
+def score_comparison(score: float, expected: float) -> dict[str, str | float]:
+    disagreement = abs(score - expected)
+    return {
+        "native_score": score,
+        "native_expected_index": expected,
+        "native_score_disagreement": disagreement,
+        "native_score_warning": (
+            "none"
+            if disagreement <= 1e-6
+            else "small_disagreement"
+            if disagreement <= SMALL_SCORE_DISAGREEMENT
+            or math.isclose(disagreement, SMALL_SCORE_DISAGREEMENT, rel_tol=0, abs_tol=1e-12)
+            else "large_disagreement"
+        ),
+    }
 
 
 class Settings(Model):
@@ -66,30 +88,42 @@ def validate_spec(spec: ProviderSpec) -> Settings:
     return settings
 
 
-def number(value: Any, *, maximum: float = math.inf) -> float:
+def number(value: Any, *, maximum: float = math.inf, category: str = "usage") -> float:
     if type(value) not in (int, float):
-        raise ValueError("number required")
-    result = float(value)
+        raise ResponseValidationError(category)
+    try:
+        result = float(value)
+    except OverflowError:
+        raise ResponseValidationError(category) from None
     if not math.isfinite(result) or not 0 <= result <= maximum:
-        raise ValueError("number out of range")
+        raise ResponseValidationError(category)
     return result
 
 
-def fields(value: Any, required: set[str], optional: set[str] | None = None) -> dict[str, Any]:
+def fields(
+    value: Any, required: set[str], optional: set[str] | None = None, *, category: str = "schema"
+) -> dict[str, Any]:
     if (
         not isinstance(value, dict)
         or not required <= value.keys()
         or not value.keys() <= required | (optional or set())
     ):
-        raise ValueError("invalid object fields")
+        raise ResponseValidationError(category)
     return value
 
 
 class OpenRouterJevProvider:
-    def __init__(self, spec: ProviderSpec, *, transport: Callable[..., Any] | None = None) -> None:
+    def __init__(
+        self,
+        spec: ProviderSpec,
+        *,
+        transport: Callable[..., Any] | None = None,
+        score_diagnostics: ScoreDiagnostics | None = None,
+    ) -> None:
         validate_spec(spec)
         self.spec = spec
         self.transport = transport
+        self.score_diagnostics = score_diagnostics
 
     def infer(self, requests: list[Request]) -> dict[str, Prediction]:
         settings = validate_spec(self.spec)  # Also defend against mutated nested settings.
@@ -134,18 +168,45 @@ class OpenRouterJevProvider:
                 "require_parameters": True,
             },
         }
-        raw = post(self.spec, body, transport=self.transport)
+        diagnostic = self.score_diagnostics if judgment.primitive == "score" else None
+        snapshot: dict[str, Any] = {"label_count": len(labels)}
+        category = "invalid_response"
         try:
+            raw = post(self.spec, body, transport=self.transport)
+            if diagnostic is not None:
+                snapshot = score_snapshot(raw, len(labels), self.spec.model)
             prediction = self._parse(raw, request, descriptions)
             result = {request.id: prediction}
             validate_predictions(requests, result)
+            category = "accepted"
+            if diagnostic is not None:
+                snapshot.update(
+                    {
+                        k: v
+                        for k, v in prediction.diagnostics.items()
+                        if k
+                        in {
+                            "native_score_disagreement",
+                            "native_score_warning",
+                        }
+                    }
+                )
             return result
-        except (ValueError, TypeError, KeyError, OverflowError):
+        except ReflexError as error:
+            category = error.code
+            raise
+        except (ValueError, TypeError, KeyError, OverflowError) as error:
+            category = (
+                error.category if isinstance(error, ResponseValidationError) else "invalid_response"
+            )
             raise ReflexError(
                 "provider_response",
                 "invalid Decisions response; require complete normalized probabilities and consistent typed answers",
                 "Read docs/openrouter-jev.md; no response body is logged",
             ) from None
+        finally:
+            if diagnostic is not None:
+                diagnostic.record(snapshot, category)
 
     def _parse(self, raw: Any, request: Request, descriptions: dict[str, str]) -> Prediction:
         raw = fields(raw, {"model", "answers", "usage"}, {"id", "provider"})
@@ -164,13 +225,13 @@ class OpenRouterJevProvider:
         if "id" in raw:
             # A provider-controlled opaque ID could echo state or a secret. Never persist it.
             if not isinstance(raw["id"], str) or not raw["id"] or len(raw["id"]) > 256:
-                raise ValueError("invalid request ID")
+                raise ResponseValidationError("request_id")
             diagnostics["request_id"] = "redacted"
         if judgment.primitive == "binary":
             answer = fields(answer, {"type", "noul"})
             if answer["type"] != "noul":
-                raise ValueError("wrong primitive")
-            probability = number(answer["noul"], maximum=1)
+                raise ResponseValidationError("primitive")
+            probability = number(answer["noul"], maximum=1, category="probability_value")
             distribution = {"false": 1 - probability, "true": probability}
         else:
             selected_field = "choice" if judgment.primitive == "choice" else "score"
@@ -180,17 +241,19 @@ class OpenRouterJevProvider:
                 {"confidence", "legend"} if selected_field == "score" else {"confidence"},
             )
             if answer["type"] != judgment.primitive:
-                raise ValueError("wrong primitive")
+                raise ResponseValidationError("primitive")
             keys = labels if selected_field == "choice" else [str(i) for i in range(len(labels))]
-            probabilities = fields(answer["probabilities"], set(keys))
+            probabilities = fields(answer["probabilities"], set(keys), category="probability_keys")
             distribution = {
-                label: number(probabilities[key], maximum=1)
+                label: number(probabilities[key], maximum=1, category="probability_value")
                 for label, key in zip(labels, keys, strict=True)
             }
             if abs(sum(distribution.values()) - 1) > 1e-6:
-                raise ValueError("distribution not normalized")
+                raise ResponseValidationError("probability_sum")
             if "confidence" in answer:
-                diagnostics["native_confidence"] = number(answer["confidence"], maximum=1)
+                diagnostics["native_confidence"] = number(
+                    answer["confidence"], maximum=1, category="native_confidence"
+                )
             if selected_field == "choice":
                 selected = answer["choice"]
                 if (
@@ -198,23 +261,21 @@ class OpenRouterJevProvider:
                     or selected not in distribution
                     or distribution[selected] != max(distribution.values())
                 ):
-                    raise ValueError("choice contradicts probabilities")
+                    raise ResponseValidationError("choice")
                 diagnostics["native_selected"] = selected
             else:
-                score = number(answer["score"], maximum=len(labels) - 1)
+                score = number(answer["score"], maximum=len(labels) - 1, category="native_score")
                 expected = sum(i * distribution[label] for i, label in enumerate(labels))
-                if abs(score - expected) > 1e-6:
-                    raise ValueError("score contradicts probabilities")
                 if "legend" in answer and answer["legend"] != {
                     str(i): descriptions[label] for i, label in enumerate(labels)
                 }:
-                    raise ValueError("score legend differs from criteria order")
-                diagnostics["native_score"] = score
-        usage = fields(raw["usage"], {"input_tokens", "output_tokens"}, {"cost"})
+                    raise ResponseValidationError("legend")
+                diagnostics.update(score_comparison(score, expected))
+        usage = fields(raw["usage"], {"input_tokens", "output_tokens"}, {"cost"}, category="usage")
         tokens = {}
         for key in ("input_tokens", "output_tokens"):
             if type(usage[key]) is not int:
-                raise ValueError("token count must be an integer")
+                raise ResponseValidationError("usage")
             tokens[key] = number(usage[key])
         cost = number(usage["cost"]) if "cost" in usage else None
         return Prediction(
