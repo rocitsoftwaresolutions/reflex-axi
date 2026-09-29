@@ -164,6 +164,15 @@ Authentication/credit errors require operator correction. No response body or he
 included in errors. Exceptions are sanitized into `provider_http`, `provider_transport`,
 `provider_response`, `provider_distribution`, `provider_version`, or `provider_config`.
 
+Typed response validation keeps the `provider_response` code and includes a safe local
+reason in its message, for example `invalid Decisions response (probability_sum);
+Probabilities must sum to one within 1e-6`. Reasons distinguish schema, probability keys,
+values or sums, native choice/confidence, score/legend, request ID shape, and usage failures.
+They come from a fixed allowlist, never provider-controlled text, and survive in saved failed
+job cells. This adds no rejected-response capture and does not change validation, caching,
+or retry behavior. A `provider_response` error alone does not establish missing probabilities;
+inspect its reason to identify the failed check.
+
 Input/output token counts must be nonnegative integers. Optional `usage.cost` must be finite
 and nonnegative; absent cost stays unknown (`null`), never free. No cost is estimated from a
 possibly stale price page. Engine wall time measures the whole call. Cache hits retain source
