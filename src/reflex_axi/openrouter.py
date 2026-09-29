@@ -10,7 +10,12 @@ from pydantic import Field, ValidationError
 
 from .errors import ReflexError
 from .models import Model, Prediction, ProviderSpec
-from .openrouter_diagnostics import ResponseValidationError, ScoreDiagnostics, score_snapshot
+from .openrouter_diagnostics import (
+    MESSAGES,
+    ResponseValidationError,
+    ScoreDiagnostics,
+    score_snapshot,
+)
 from .providers import Request, post, validate_predictions
 
 ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
@@ -197,11 +202,13 @@ class OpenRouterJevProvider:
             raise
         except (ValueError, TypeError, KeyError, OverflowError) as error:
             category = (
-                error.category if isinstance(error, ResponseValidationError) else "invalid_response"
+                error.category
+                if isinstance(error, ResponseValidationError) and error.category in MESSAGES
+                else "invalid_response"
             )
             raise ReflexError(
                 "provider_response",
-                "invalid Decisions response; require complete normalized probabilities and consistent typed answers",
+                f"invalid Decisions response ({category}); {MESSAGES[category]}",
                 "Read docs/openrouter-jev.md; no response body is logged",
             ) from None
         finally:
