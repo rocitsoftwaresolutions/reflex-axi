@@ -12,6 +12,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         python: ['3.11', '3.13']
     runs-on: ${{ matrix.os }}
+    # The gate takes well under a minute locally; fail fast with logs instead of hanging.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
