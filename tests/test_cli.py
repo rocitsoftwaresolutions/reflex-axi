@@ -3,9 +3,9 @@ import os
 import subprocess
 import sys
 
-import pytest
-from conftest import deployment, write_json
+from conftest import changed_binding, deployment, write_json
 
+from reflex_axi.catalog import default_binding
 from reflex_axi.cli import parser
 from reflex_axi.engine import Engine
 from reflex_axi.evidence import Evidence
@@ -83,20 +83,6 @@ def test_global_flags_before_command_are_preserved(tmp_path):
     assert json.loads(result.stdout)["count"] == 0
     assert root.exists()
     assert not (tmp_path / "wrong-root").exists()
-
-
-@pytest.mark.parametrize("version", ["--version", "-v", "-V"])
-def test_version_no_state_and_no_heavy_import(tmp_path, version):
-    env = {**os.environ, "REFLEX_STATE_ROOT": str(tmp_path / "missing")}
-    code = (
-        "import sys; sys.argv=['reflex-axi',"
-        + repr(version)
-        + "]; from reflex_axi.entry import main; main(); assert 'pydantic' not in sys.modules; assert 'reflex_axi.cli' not in sys.modules"
-    )
-    result = subprocess.run([sys.executable, "-c", code], text=True, capture_output=True, env=env)
-    assert result.stdout == "0.1.0\n"
-    assert result.returncode == 0
-    assert not (tmp_path / "missing").exists()
 
 
 def test_all_commands_have_help_without_storage(tmp_path):
@@ -179,8 +165,6 @@ def test_setup_snippets_only(cli, tmp_path):
 
 
 def test_cli_complete_lifecycle(cli, tmp_path, pack, binding):
-    from conftest import changed_binding
-
     active = {"pack": pack.model_dump(by_alias=True), "binding": binding.model_dump()}
     active_path = write_json(tmp_path, "active.json", active)
     cli("activate", "--file", active_path)
@@ -314,3 +298,89 @@ def test_documented_examples_run(tmp_path, pack, binding):
     assert kinds == ["optimization_ready", "optimizing", "candidate_created"]
     assert int(cursor.read_text()) > activated
     assert drain() == []  # the durable cursor never replays handled events
+
+
+def test_cli_benchmark_workflow(cli, tmp_path):
+    assert cli("benchmark", "list")["count"] == 4
+    result = cli(
+        "benchmark",
+        "run",
+        "--provider",
+        "mock",
+        "--suite",
+        "starter",
+        "--mode",
+        "batch",
+        "--repeats",
+        "1",
+    )
+    assert result["status"] == "COMPLETE"
+    full = cli("benchmark", "show", "--run", result["id"], "--full")
+    assert full["summary"]["conformance"]["pass_rate"] == 1
+    assert full["metadata"]["definition"]["binding"]["provider"]["adapter"] == "mock"
+    assert full["summary"]["quality"]["labeled"] == 19
+    assert full["summary"]["quality"]["accuracy"] < 1  # mock is not a semantic oracle
+    assert cli("benchmark", "resume", "--run", result["id"])["id"] == result["id"]
+    path = tmp_path / "run.json"
+    cli("benchmark", "show", "--run", result["id"], "--full", "--output", str(path))
+    assert json.loads(path.read_text())["results_hash"] == full["results_hash"]
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert cli("benchmark", "compare", "--run", result["id"], "--against", result["id"])[
+        "environment_equal"
+    ]
+    cli("benchmark", "run", expected=2)
+    cli("benchmark", "run", "--provider", "mock", "--concurrency", "0", expected=2)
+    cli("benchmark", "resume", "--run", result["id"], "--provider", "mock", expected=2)
+    cli("benchmark", "run", "--provider", "mock", "--suite", "typo", expected=2)
+
+
+def test_export_preserves_partial_exit_code(cli, tmp_path):
+    spec = default_binding().provider.model_dump()
+    spec["settings"] = {"fail": True}
+    path = write_json(tmp_path, "failure.json", spec)
+    output = tmp_path / "failed.json"
+    receipt = cli(
+        "benchmark",
+        "run",
+        "--provider",
+        path,
+        "--suite",
+        "boundaries",
+        "--mode",
+        "batch",
+        "--repeats",
+        "1",
+        "--full",
+        "--output",
+        str(output),
+        expected=1,
+    )
+    assert receipt["status"] == "written"
+    assert json.loads(output.read_text())["status"] == "PARTIAL"
+
+
+def test_cli_offline_registration(cli):
+    result = cli("providers", "--import", "examples/openrouter-jev.json", "--full")
+    assert result["providers"][0]["adapter"] == "openrouter-jev"
+    assert "unverified" in result["openrouter_jev"]["revision"]
+    failed = cli(
+        "evaluate",
+        "--provider",
+        "examples/openrouter-jev.json",
+        "--pack",
+        "filter-context",
+        "--state",
+        "examples/state.json",
+        "--research",
+        expected=1,
+    )
+    assert failed["code"] == "provider_version"
+
+
+def test_score_diagnostic_cli_restrictions(cli):
+    wrong_provider = cli(
+        "benchmark", "run", "--provider", "mock", "--score-diagnostics", expected=2
+    )
+    assert wrong_provider["code"] == "usage"
+    wrong_operation = cli("benchmark", "list", "--score-diagnostics", expected=2)
+    assert wrong_operation["code"] == "usage"

@@ -70,7 +70,7 @@ endpoints, settings, state, or criteria. No interactive prompts exist.
 
 The endpoint is explicitly configured and restricted to the documented public HTTPS URL.
 Custom proxies and alternative hosts are not supported, to avoid forwarding credentials to
-an unintended service. Tests inject a transport rather than changing the endpoint.
+an unintended service.
 
 Once a separately verified configuration is available, ordinary CLI execution applies:
 
@@ -83,9 +83,6 @@ reflex-axi benchmark run --provider provider.json --suite starter --mode batch -
 
 Those commands may incur charges with an enabled provider. The live check used single mode;
 it did not qualify native batching or higher concurrency. An offline framework benchmark uses `--provider mock`.
-`tests/test_openrouter.py` additionally runs the actual adapter through the benchmark runner
-with deterministic wire fixtures, including single, batch and bundle modes. Fixture quality
-and timing are not evidence of Jev model quality or service latency.
 
 ## Primitive mapping and validation
 

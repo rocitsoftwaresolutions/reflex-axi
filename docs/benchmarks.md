@@ -72,13 +72,10 @@ Results remain separated:
   successful cells and durable checkpoint chunks. One failed native batch invalidates that
   entire call; independently completed calls remain available.
 
-Confidence-band behavior is also tested deterministically just below/at/above the policy
-threshold in CI. CI injects missing/invalid distributions, row reordering, missing IDs,
-transport failures, interruptions and provider exceptions. Real loopback HTTP drives the Jev
-adapter under native batching and bounded concurrent execution. GLiNER fixtures match its
-public raw-logit scoring interface without installing a model or ML runtime. These fault
-experiments verify adapter/framework handling; they do **not** claim a live provider was
-subjected to network faults or that a model will handle arbitrary outages well.
+Confidence-band behavior and fault handling (missing/invalid distributions, row reordering,
+missing IDs, transport failures, interruptions and provider exceptions) are implemented in the
+framework. The benchmark does **not** claim a live provider was subjected to network faults or
+that a model will handle arbitrary outages well.
 
 A model with declared deterministic/seeded capabilities still needs repeat and execution-mode
 checks; deterministic settings are pinned in provider identity. Different seeds require

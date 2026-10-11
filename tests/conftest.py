@@ -8,7 +8,6 @@ import pytest
 
 from reflex_axi.catalog import default_binding
 from reflex_axi.models import Binding, Deployment, Pack
-from reflex_axi.store import Store
 
 
 def pytest_configure(config):
@@ -16,19 +15,6 @@ def pytest_configure(config):
     # clone without .scratch/ would error at every tmp_path setup.
     if config.option.basetemp:
         Path(config.option.basetemp).parent.mkdir(parents=True, exist_ok=True)
-
-
-def pytest_make_parametrize_id(config, val, argname):
-    # Oversized payloads would otherwise become multi-megabyte node IDs, and printing
-    # them (failure summaries, -v) stalls CI log processing for hours.
-    if isinstance(val, bytes | str) and len(val) > 100:
-        return f"{argname}-{type(val).__name__}-{len(val)}"
-    return None
-
-
-@pytest.fixture
-def store(tmp_path):
-    return Store(tmp_path / "state")
 
 
 @pytest.fixture
