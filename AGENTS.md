@@ -14,8 +14,7 @@ edit that file by hand - the check fails on staleness.
 
 ## Invariants that must survive every change
 
-These are the product, not implementation details. Tests enforce them; read `docs/` before
-changing anything here.
+These are the product, not implementation details. Read `docs/` before changing anything here.
 
 - **No action execution.** `decide` returns a recommendation with `executed: false`. No
   confidence value ever authorizes a side effect.
@@ -37,9 +36,10 @@ changing anything here.
 ## Conventions
 
 - Reproduce a bug through the console entry point or the provider boundary before fixing it;
-  provider tests exercise serialized HTTP through injected byte-stream transports; the suite
-  forbids network sockets. OpenRouter/Jev snapshot gates and limitations are in
-  `docs/openrouter-jev.md`.
+  agents do not write unit or integration tests on their own initiative; verify through real
+  end-to-end or browser checks, lint, typecheck and build. Allowed tests are e2e/browser,
+  external-truth, and tests the captain describes. OpenRouter/Jev snapshot gates and
+  limitations are in `docs/openrouter-jev.md`.
 - Keep default CLI output small and add detail behind `--full` / `--json` / `--fields` /
   `--output`.
 - Add adapters rather than core domain logic. Finance, research and other domain concerns

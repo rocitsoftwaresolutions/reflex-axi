@@ -166,7 +166,7 @@ local-only lookup provider with a prior fallback. A real trainer implements the 
 `Trainer` protocol and returns whatever `ProviderSpec` its runtime needs; the shipped fixture
 trainer keeps the lifecycle testable without bundling an ML runtime.
 
-### `gliner` (optional, fixture-tested)
+### `gliner` (optional, unvalidated)
 
 Offline GLiNER2.5-Decide through GLiNER2 2.0.0 full per-label logits. CPU float32,
 seeded deterministic settings, same-judgment native batches up to eight, concurrency one,
@@ -215,5 +215,3 @@ None of these run implicitly, and none of them cost anything during ordinary inf
 5. Keep backend-specific concepts inside `settings`.
 6. Register the class in `provider_from_spec` and add the adapter name to
    `ProviderSpec.adapter`.
-7. Add byte-stream transport fixtures in `tests/test_providers.py` or `tests/test_openrouter.py`.
-   All tests forbid socket creation; exercise real request serialization and response parsing.

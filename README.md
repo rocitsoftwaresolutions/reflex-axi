@@ -85,7 +85,7 @@ performance and resilience. Runs are protected, resumable and cannot train or pr
 provider. Mock runs test the harness, not semantic fitness.
 
 [GLiNER2.5-Decide setup](docs/gliner.md) documents the optional `gliner` extra, offline
-snapshot manifest, runtime pins and tested adapter contract. Real inference is unvalidated:
+snapshot manifest, runtime pins and adapter contract. Real inference is unvalidated:
 the inspected machine had only 2.64 GiB free, insufficient for the 1.95 GB weights plus runtime,
 caches and operating margin. No weights were downloaded. Do not install the optional runtime
 until the documented capacity check passes.

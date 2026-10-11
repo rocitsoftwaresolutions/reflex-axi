@@ -1,8 +1,8 @@
 # GLiNER2.5-Decide: optional local provider
 
-Status: adapter tested against deterministic fixtures of the public GLiNER2 2.0.0 scoring
-contract. **Real weights were not downloaded and real inference has not been validated.**
-Do not interpret the fixture benchmark as model-quality evidence.
+Status: adapter written against the public GLiNER2 2.0.0 scoring contract, with no automated
+tests. **Real weights were not downloaded and real inference has not been validated.**
+Do not interpret a mock benchmark as model-quality evidence.
 
 ## Official sources inspected on 2026-09-26
 
@@ -148,5 +148,5 @@ missing/changed files, missing dependencies, runtime changes, invalid logits, as
 errors and memory/runtime failures are normalized without a provider fallback.
 
 Measured model memory, latency, throughput, quality and operational behavior remain **unknown**
-until a real run can be performed safely. Do not advertise this fixture-tested adapter as a
+until a real run can be performed safely. Do not advertise this adapter as a
 validated deployment.
